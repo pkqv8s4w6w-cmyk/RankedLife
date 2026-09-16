@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "Ranked Life Gate",
+  "version": "1.0.0",
+  "description": "Blocks the sites you told it to until you have banked enough points today.",
+  "permissions": ["declarativeNetRequest", "storage", "alarms"],
+  "host_permissions": ["http://localhost/*", "https://*/*"],
+  "background": { "service_worker": "background.js" },
+  "options_page": "options.html",
+  "action": { "default_title": "Ranked Life Gate" },
+  "web_accessible_resources": [
+    { "resources": ["blocked.html"], "matches": ["<all_urls>"] }
+  ]
+}

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Ranked Life Gate</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 28px;
+        background: #07080c;
+        color: #e9edf7;
+        font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, sans-serif;
+        max-width: 440px;
+      }
+      h1 { font-size: 18px; margin: 0 0 4px; }
+      p { color: #8d96ad; font-size: 13px; margin: 0 0 20px; }
+      label { display: block; font-size: 12px; color: #8d96ad; margin: 14px 0 6px; }
+      input {
+        width: 100%; box-sizing: border-box; padding: 11px 13px;
+        background: #141824; border: 1px solid #222736; border-radius: 10px;
+        color: #e9edf7; font: inherit; outline: none;
+      }
+      input:focus { border-color: #35d6c8; }
+      button {
+        margin-top: 18px; width: 100%; padding: 12px;
+        background: #35d6c8; color: #07080c; border: 0; border-radius: 10px;
+        font: 600 15px/1 inherit; cursor: pointer;
+      }
+      #status { margin-top: 12px; font-size: 13px; min-height: 20px; }
+    </style>
+  </head>
+  <body>
+    <h1>Ranked Life Gate</h1>
+    <p>Point this at your Ranked Life install. The blocked site list comes from your app settings.</p>
+
+    <label for="baseUrl">App URL</label>
+    <input id="baseUrl" type="url" placeholder="https://rankedlife.vercel.app" />
+
+    <label for="key">Sync key (only if you set RANKEDLIFE_KEY)</label>
+    <input id="key" type="password" placeholder="leave blank if unset" />
+
+    <button id="save">Save and test</button>
+    <div id="status"></div>
+
+    <script src="options.js"></script>
+  </body>
+</html>
