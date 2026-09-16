@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Not yet</title>
+    <style>
+      body {
+        margin: 0; min-height: 100vh; display: grid; place-items: center;
+        background: #07080c;
+        background-image: radial-gradient(120% 60% at 50% -10%, rgba(255,61,110,.1) 0%, rgba(7,8,12,0) 60%);
+        color: #e9edf7;
+        font: 16px/1.6 ui-sans-serif, system-ui, -apple-system, sans-serif;
+        text-align: center;
+      }
+      .wrap { max-width: 380px; padding: 24px; }
+      .num {
+        font: 700 76px/1 ui-monospace, "SF Mono", Menlo, monospace;
+        font-variant-numeric: tabular-nums;
+        color: #ff3d6e;
+        text-shadow: 0 0 34px rgba(255,61,110,.45);
+      }
+      h1 { font-size: 20px; margin: 18px 0 6px; }
+      p { color: #8d96ad; font-size: 14px; margin: 0; }
+      .bar { height: 6px; border-radius: 99px; background: #222736; margin: 22px 0 8px; overflow: hidden; }
+      .fill { height: 100%; background: linear-gradient(90deg, #35d6c8, #2ee86b); border-radius: 99px; }
+      .meta { font: 12px/1 ui-monospace, Menlo, monospace; color: #5a6277; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="num" id="remaining">—</div>
+      <h1>points short</h1>
+      <p>Go earn it. This opens itself the moment you clear the bar.</p>
+      <div class="bar"><div class="fill" id="fill" style="width:0"></div></div>
+      <div class="meta" id="meta"></div>
+    </div>
+    <script>
+      const params = new URLSearchParams(location.search);
+      const remaining = Number(params.get('remaining') ?? 0);
+      const score = Number(params.get('score') ?? 0);
+      const threshold = Number(params.get('threshold') ?? 0);
+
+      document.getElementById('remaining').textContent = Math.ceil(remaining);
+      document.getElementById('meta').textContent = `${Math.round(score)} / ${Math.round(threshold)}`;
+      document.getElementById('fill').style.width =
+        threshold > 0 ? `${Math.min(100, (score / threshold) * 100)}%` : '0';
+    </script>
+  </body>
+</html>
