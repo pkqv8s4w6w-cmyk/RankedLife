@@ -32,18 +32,21 @@ export const DEFAULT_ACTIVITIES: Activity[] = [
     cue: 'If it is after my last class, I go straight to the gym without going home first.',
   }),
   act({
-    id: 'assignment',
-    name: 'Assignment',
-    emoji: '📐',
+    // The floor. One toggle covering everything that was actually due today,
+    // instead of a tile per kind of obligation. Worth about 60% of a baseline
+    // par day on purpose: doing the minimum gets you most of the way there, but
+    // you still need one more thing to clear par.
+    id: 'todo',
+    name: 'Cleared my to-do list',
+    emoji: '📋',
     polarity: 'build',
-    kind: 'duration',
-    unit: 'min',
-    points: 10,
-    friction: 5,
-    softCap: 30,
-    presets: [25, 50, 75],
+    kind: 'check',
+    points: 22,
+    friction: 4,
+    softCap: 28, // one tick is always full credit: 22 x 1.25 friction
+    keystone: true,
     pinned: true,
-    cue: 'If I sit down at my desk after dinner, I open the assignment before anything else.',
+    cue: 'If I sit down at my desk after dinner, I open my list and clear it before anything else.',
   }),
   act({
     id: 'study',
@@ -119,7 +122,7 @@ export const DEFAULT_ACTIVITIES: Activity[] = [
     kind: 'check',
     points: 40,
     friction: 5,
-    softCap: 40,
+    softCap: 62,
     pinned: false,
   }),
   act({
@@ -130,7 +133,7 @@ export const DEFAULT_ACTIVITIES: Activity[] = [
     kind: 'check',
     points: 8,
     friction: 4,
-    softCap: 8,
+    softCap: 10,
     pinned: true,
     cue: 'If it is 11:30pm, my phone goes on the charger across the room.',
   }),
@@ -213,7 +216,7 @@ export const DEFAULT_SETTINGS: Settings = {
   },
 };
 
-export const STATE_VERSION = 1;
+export const STATE_VERSION = 2;
 
 export function freshState(): AppState {
   const start = todayKey(DEFAULT_SETTINGS.dayRolloverHour);

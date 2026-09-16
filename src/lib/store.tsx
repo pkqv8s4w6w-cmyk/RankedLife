@@ -20,7 +20,7 @@ import React, {
   useState,
 } from 'react';
 import type { Activity, AppState, LogEntry } from './types';
-import { freshState, STATE_VERSION } from './defaults';
+import { DEFAULT_ACTIVITIES, freshState, STATE_VERSION } from './defaults';
 import { catchUp, refreshPenaltyBox, addEntry as engineAdd, removeEntry as engineRemove } from './engine';
 import { todayKey } from './dates';
 
@@ -70,6 +70,17 @@ function loadLocal(): AppState | null {
 /** Forward-only migrations. Unknown future versions are left alone. */
 function migrate(state: AppState): AppState {
   let s = state;
+
+  // v2 introduced keystones - daily obligations that cost RP when skipped.
+  // Anyone already using the app gets the to-do list one added rather than a
+  // reset, and their existing activities are left exactly as they are.
+  if (s.version < 2 && !(s.activities ?? []).some((a) => a.keystone)) {
+    const template = DEFAULT_ACTIVITIES.find((a) => a.keystone);
+    if (template && !(s.activities ?? []).some((a) => a.id === template.id)) {
+      s = { ...s, activities: [template, ...(s.activities ?? [])] };
+    }
+  }
+
   if (s.version < STATE_VERSION) {
     s = { ...s, version: STATE_VERSION };
   }

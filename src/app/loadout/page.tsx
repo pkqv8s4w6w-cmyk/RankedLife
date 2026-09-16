@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import type { Activity, ActivityKind, Friction, Polarity } from '@/lib/types';
 import { useStore } from '@/lib/store';
-import { FRICTION_LABEL, FRICTION_MULT, rawPointsFor } from '@/lib/scoring';
+import { FRICTION_LABEL, FRICTION_MULT, minSoftCap, rawPointsFor } from '@/lib/scoring';
+import { KEYSTONE_MISS_RP } from '@/lib/engine';
 
 export default function LoadoutPage() {
   const { state, ready, saveActivity, deleteActivity } = useStore();
@@ -133,6 +134,14 @@ function Group({
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
                   <span className="truncate text-sm">{activity.name}</span>
+                  {activity.keystone && (
+                    <span
+                      className="shrink-0 rounded px-1 text-[9px] font-bold uppercase tracking-wide"
+                      style={{ background: 'var(--color-crit)', color: '#07080c' }}
+                    >
+                      floor
+                    </span>
+                  )}
                   {activity.pinned && <span className="text-[10px]">📌</span>}
                 </div>
                 <div className="num text-[11px] text-[color:var(--color-ink-faint)]">
@@ -173,7 +182,7 @@ function blankActivity(): Activity {
     unit: 'min',
     points: 8,
     friction: 3,
-    softCap: 16,
+    softCap: 16, // normalised against minSoftCap on save
     pinned: true,
     archived: false,
     createdAt: Date.now(),
@@ -287,19 +296,25 @@ function ActivityEditor({
               </p>
             </Field>
 
-            <Field label="Full-credit ceiling per day">
-              <input
-                type="number"
-                inputMode="decimal"
-                value={draft.softCap}
-                onChange={(e) => set('softCap', Math.max(1, Number(e.target.value) || 1))}
-                className="w-full rounded-xl border border-[color:var(--color-line)] bg-[color:var(--color-surface-2)] px-4 py-3 outline-none"
-              />
-              <p className="mt-1.5 text-[11px] text-[color:var(--color-ink-faint)]">
-                Points past this decay hard — half, then a quarter. Stops one easy
-                activity from becoming the whole score.
-              </p>
-            </Field>
+            {/* A yes/no activity has an obvious ceiling - one tick - so asking
+                for it in points is just a way to get it wrong. */}
+            {draft.kind !== 'check' && (
+              <Field label="Full-credit ceiling per day">
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  value={draft.softCap}
+                  onChange={(e) => set('softCap', Math.max(1, Number(e.target.value) || 1))}
+                  className="w-full rounded-xl border border-[color:var(--color-line)] bg-[color:var(--color-surface-2)] px-4 py-3 outline-none"
+                />
+                <p className="mt-1.5 text-[11px] text-[color:var(--color-ink-faint)]">
+                  Points past this decay hard — half, then a quarter. Stops one easy
+                  activity from becoming the whole score. Minimum{' '}
+                  <span className="num">{minSoftCap(draft)}</span>, so a single
+                  session is never docked.
+                </p>
+              </Field>
+            )}
           </>
         )}
 
@@ -313,7 +328,7 @@ function ActivityEditor({
           />
         </Field>
 
-        <label className="mb-4 flex items-center gap-3 text-sm">
+        <label className="mb-3 flex items-center gap-3 text-sm">
           <input
             type="checkbox"
             checked={draft.pinned}
@@ -322,6 +337,25 @@ function ActivityEditor({
           />
           Show as a quick-tap tile
         </label>
+
+        {draft.polarity === 'build' && (
+          <label className="mb-4 flex cursor-pointer items-start gap-3 text-sm">
+            <input
+              type="checkbox"
+              checked={draft.keystone ?? false}
+              onChange={(e) => set('keystone', e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 accent-[color:var(--color-crit)]"
+            />
+            <span className="min-w-0">
+              <span className="block">Non-negotiable</span>
+              <span className="mt-0.5 block text-[11px] leading-relaxed text-[color:var(--color-ink-faint)]">
+                Gets its own slot at the top of Today, and skipping it costs{' '}
+                {Math.abs(KEYSTONE_MISS_RP)} RP on top of the points you miss. For
+                things that were already due, not things you could do.
+              </span>
+            </span>
+          </label>
+        )}
 
         <div className="mb-4 rounded-xl border border-[color:var(--color-line)] bg-[color:var(--color-surface-2)] px-4 py-3 text-sm">
           <span className="text-[color:var(--color-ink-dim)]">
@@ -352,7 +386,15 @@ function ActivityEditor({
             </button>
           )}
           <button
-            onClick={() => draft.name.trim() && onSave({ ...draft, name: draft.name.trim() })}
+            onClick={() =>
+              draft.name.trim() &&
+              onSave({
+                ...draft,
+                name: draft.name.trim(),
+                // Never store a ceiling that would dock the first log of the day.
+                softCap: Math.max(draft.softCap, minSoftCap(draft)),
+              })
+            }
             disabled={!draft.name.trim()}
             className="flex-1 rounded-xl py-3 font-semibold text-black disabled:opacity-30"
             style={{ background: 'var(--color-accent)' }}

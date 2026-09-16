@@ -47,6 +47,15 @@ export interface Activity {
   softCap: number;
   /** Implementation intention: "if <cue>, then I do this". Gollwitzer if-then plan. */
   cue?: string;
+  /**
+   * A daily obligation rather than optional upside.
+   *
+   * Everything else in the app is something you *can* do for points. A keystone
+   * is something that was already due - clearing your to-do list, say - so
+   * missing it costs RP on top of the points you didn't earn. That asymmetry is
+   * the whole difference between a floor and just another tile.
+   */
+  keystone?: boolean;
   /** Shown as a quick-tap tile on the Today screen. */
   pinned: boolean;
   archived: boolean;

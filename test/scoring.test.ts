@@ -10,6 +10,8 @@ import {
   scoreEntry,
   buildContext,
 } from '../src/lib/scoring';
+import { minSoftCap } from '../src/lib/scoring';
+import { DEFAULT_ACTIVITIES } from '../src/lib/defaults';
 import type { Activity } from '../src/lib/types';
 
 function activity(patch: Partial<Activity> = {}): Activity {
@@ -156,4 +158,36 @@ test('backfilled entries are worth less than same-day ones', () => {
   const onTime = scoreEntry('x1', a, 30, { ...ctx }, 1);
   const late = scoreEntry('x1', a, 30, { ...ctx }, 0.7);
   assert.ok(late.points < onTime.points);
+});
+
+// ---- guards on the shipped loadout ------------------------------------------
+
+test('every starter activity gives full credit on the first log of the day', () => {
+  // The bug this catches: setting softCap equal to `points` looks right but
+  // ignores the friction multiplier, so a single completion silently gets
+  // docked before you have repeated anything.
+  for (const activity of DEFAULT_ACTIVITIES) {
+    if (activity.polarity !== 'build') continue;
+    const oneUnit = activity.kind === 'duration' ? 30 : activity.kind === 'money' ? 10 : 1;
+    const raw = rawPointsFor(activity, oneUnit);
+    const credited = diminish(0, raw, activity.softCap);
+    assert.ok(
+      Math.abs(credited - raw) < 0.01,
+      `${activity.name}: first log credited ${credited} of ${raw} (softCap ${activity.softCap}, needs >= ${minSoftCap(activity)})`,
+    );
+  }
+});
+
+test('minSoftCap accounts for friction, which is the whole point of it', () => {
+  const dreaded = activity({ kind: 'check', points: 20, friction: 5 });
+  assert.equal(minSoftCap(dreaded), 31, '20 x 1.55');
+  const enjoyed = activity({ kind: 'check', points: 20, friction: 1 });
+  assert.equal(minSoftCap(enjoyed), 14, '20 x 0.7');
+});
+
+test('repeating a check activity still decays, so a ceiling means something', () => {
+  const a = activity({ kind: 'check', points: 20, friction: 3, softCap: 20 });
+  const raw = rawPointsFor(a, 1);
+  assert.equal(diminish(0, raw, a.softCap), 20, 'first tick full');
+  assert.equal(diminish(raw, raw, a.softCap), 10, 'second tick halved');
 });

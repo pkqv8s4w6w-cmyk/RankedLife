@@ -29,6 +29,14 @@ export const BACKFILL_FACTOR = 0.7;
 export const SHIELD_EVERY_N_DAYS = 7;
 /** RP lost for each day you simply didn't show up. */
 export const GHOST_DAY_RP = -18;
+/**
+ * RP lost per keystone you left undone on a day you did log.
+ *
+ * Deliberately smaller than a missed day: this is "you skipped the thing that
+ * was already due", not "you vanished". It also never applies to a day you
+ * never opened at all, since GHOST_DAY_RP has already covered that.
+ */
+export const KEYSTONE_MISS_RP = -8;
 /** Cap on how much a single catch-up can cost, so a rough week isn't fatal. */
 export const GHOST_CATCHUP_FLOOR = -50;
 /** Streak damage per missed day. Damaged, never zeroed - one miss doesn't undo a habit. */
@@ -50,6 +58,17 @@ export function parForDay(state: AppState, dateKey: string): number {
   const history = Object.values(state.days).filter((d) => d.dateKey < dateKey);
   const previous = state.days[addDays(dateKey, -1)]?.par;
   return computePar({ history, baselinePar: state.settings.baselinePar, previousPar: previous });
+}
+
+/** Live keystone activities - the day's non-negotiables. */
+export function keystonesFor(state: AppState): Activity[] {
+  return state.activities.filter((a) => a.keystone && !a.archived && a.polarity === 'build');
+}
+
+/** Keystones with nothing logged against them on the given day. */
+export function missedKeystones(state: AppState, dateKey: string): Activity[] {
+  const logged = new Set(entriesForDay(state, dateKey).map((e) => e.activityId));
+  return keystonesFor(state).filter((a) => !logged.has(a.id));
 }
 
 export function questsForDay(state: AppState, dateKey: string): Quest[] {
@@ -154,6 +173,16 @@ export function closeDay(state: AppState, dateKey: string): CloseResult {
     const streakBonus = Math.min(8, Math.floor(profile.streak / 5));
     if (streakBonus > 0) modifiers.push({ label: `Streak ${profile.streak}`, value: streakBonus });
 
+    // The floor. Skipping something that was already due costs RP on top of the
+    // points you didn't earn, which is what separates an obligation from an
+    // opportunity.
+    for (const activity of missedKeystones(state, dateKey)) {
+      modifiers.push({ label: `Skipped: ${activity.name}`, value: KEYSTONE_MISS_RP });
+    }
+
+    // `outcome` stays a statement about par, because that is what it means
+    // everywhere it is read. A skipped keystone shows up as its own modifier
+    // line instead, so a 70-point day never gets labelled "under par".
     outcome = score >= par ? 'cleared' : 'missed';
   }
 
@@ -407,10 +436,20 @@ export function freshProfile(startKey: string): Profile {
   };
 }
 
-/** Which single activity would most cheaply have covered a shortfall. */
-export function bestLeverFor(activities: Activity[], gap: number): string | undefined {
+/**
+ * Which single activity would most cheaply have covered a shortfall.
+ *
+ * `alreadyLogged` keeps it from suggesting a done/not-done thing you have
+ * already ticked off, which would be both wrong and slightly insulting.
+ */
+export function bestLeverFor(
+  activities: Activity[],
+  gap: number,
+  alreadyLogged: Set<string> = new Set(),
+): string | undefined {
   const options = activities
     .filter((a) => !a.archived && a.polarity === 'build')
+    .filter((a) => !(a.kind === 'check' && alreadyLogged.has(a.id)))
     .map((a) => {
       const perUnit = a.points * (a.kind === 'duration' ? 1 : 1);
       const unitsNeeded = Math.max(1, Math.ceil(gap / Math.max(0.1, perUnit)));

@@ -9,8 +9,9 @@ import { BrainDump } from '@/components/BrainDump';
 import { QuestList } from '@/components/QuestList';
 import { LogList } from '@/components/LogList';
 import { PenaltyBanner, GateBanner, FreshStartBanner } from '@/components/Banners';
+import { Floor } from '@/components/Floor';
 import { Onboarding } from '@/components/Onboarding';
-import { bestLeverFor, entriesForDay, parForDay, questsForDay } from '@/lib/engine';
+import { bestLeverFor, entriesForDay, keystonesFor, parForDay, questsForDay } from '@/lib/engine';
 import { rpForDay, shortfallAdvice } from '@/lib/par';
 import { totalPoints } from '@/lib/scoring';
 
@@ -21,13 +22,17 @@ export default function TodayPage() {
     const entries = entriesForDay(state, today);
     const score = totalPoints(entries);
     const par = parForDay(state, today);
+    const loggedIds = new Set(entries.map((e) => e.activityId));
     return {
       entries,
       score,
       par,
+      loggedIds,
       quests: questsForDay(state, today),
       projectedRp: rpForDay(score, par),
-      pinned: state.activities.filter((a) => a.pinned && !a.archived),
+      keystones: keystonesFor(state),
+      // Keystones get their own section, so keep them out of the grid too.
+      pinned: state.activities.filter((a) => a.pinned && !a.archived && !a.keystone),
     };
   }, [state, today]);
 
@@ -42,7 +47,7 @@ export default function TodayPage() {
   if (!state.onboarded) return <Onboarding />;
 
   const gap = view.par - view.score;
-  const lever = gap > 0 ? bestLeverFor(state.activities, gap) : undefined;
+  const lever = gap > 0 ? bestLeverFor(state.activities, gap, view.loggedIds) : undefined;
 
   return (
     <div className="space-y-5">
@@ -86,6 +91,9 @@ export default function TodayPage() {
       </div>
 
       <GateBanner score={view.score} />
+      {/* The floor sits above the bulk-entry box: it is the one thing you owe,
+          so it should be the first thing you can act on. */}
+      <Floor keystones={view.keystones} loggedIds={view.loggedIds} />
       <BrainDump />
       <QuickGrid activities={view.pinned} />
       <QuestList quests={view.quests} />

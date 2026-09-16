@@ -10,3 +10,4 @@ next-env.d.ts
 .env*.local
 .DS_Store
 npm-debug.log*
+.test-build/

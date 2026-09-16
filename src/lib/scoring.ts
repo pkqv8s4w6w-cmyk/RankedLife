@@ -172,6 +172,16 @@ export function round1(n: number): number {
   return Math.round(n * 10) / 10;
 }
 
+/**
+ * The smallest sensible daily ceiling: one standard unit's worth, after
+ * friction. Set it any lower and the very first log of the day gets docked,
+ * which is never what anyone means by a ceiling.
+ */
+export function minSoftCap(activity: Activity): number {
+  const oneUnit = activity.kind === 'duration' ? 30 : activity.kind === 'money' ? 10 : 1;
+  return round1(rawPointsFor(activity, oneUnit));
+}
+
 export interface ScoreContext {
   /** Raw points already logged today, keyed by activity id. */
   earnedByActivity: Record<string, number>;

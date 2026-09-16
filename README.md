@@ -16,6 +16,16 @@ Most habit trackers fail the same way: they ask you to log everything, give you
 a number that means nothing, and punish a single missed day by wiping the only
 thing you cared about. Every mechanic here is aimed at one of those.
 
+**There's a floor, and it's the only thing that's mandatory.** One toggle —
+*cleared my to-do list* — covering everything that was actually due today,
+instead of a separate tile per kind of obligation. Everything else in the app
+is optional upside: not doing it just means fewer points. The floor is
+different. Skipping it costs 8 RP on top of the points you didn't earn, because
+a bare minimum with no downside isn't a minimum. It's worth about 60% of a
+baseline day, so doing it gets you most of the way to par but never all the way
+— you still need one real thing on top. Anything else can be marked as a floor
+item in Loadout.
+
 **Rank is the thing you can lose.** Points are just the currency. RP, tiers and
 demotion are what make a Tuesday matter. Loss aversion does the work that a
 streak counter can't, because a streak only hurts once.
@@ -53,7 +63,7 @@ follow-through, and the first week being winnable is what builds the
 self-efficacy you need in week six.
 
 **Every shortfall comes with the specific fix.** Never "you're 26 points
-short", always "26 points short — Assignment 50 min would have covered it".
+short", always "26 points short — Study 50 min would have covered it".
 Criticism only avoids damaging motivation when it carries a correctable
 instruction.
 
@@ -120,7 +130,7 @@ That is genuinely all it needs. Everything is stored in your browser.
 
 ```bash
 npm run build && npm start   # production
-npm test                     # 57 tests over the scoring and rank engine
+npm test                     # 67 tests over the scoring and rank engine
 npm run typecheck
 ```
 
@@ -161,7 +171,7 @@ src/lib/
   scoring.ts    friction weighting, diminishing returns, crits
   par.ts        the trailing-median target and the RP curve
   rank.ts       tiers, divisions, demotion protection, season reset
-  engine.ts     day settlement, streaks, shields, penalty box, catch-up
+  engine.ts     day settlement, streaks, shields, floor penalties, catch-up
   quests.ts     the daily three
   store.tsx     localStorage-first state with debounced background sync
 src/app/api/
@@ -191,7 +201,9 @@ Everything is in `src/lib/`, and the constants are named:
 | Longer or shorter seasons | `SEASON_DAYS` in `engine.ts` |
 | Crit frequency and size | the `CRIT_*` constants in `scoring.ts` |
 | How much a missed day costs | `GHOST_DAY_RP` in `engine.ts` |
+| What counts as a floor item | the `keystone` toggle in Loadout |
+| What skipping the floor costs | `KEYSTONE_MISS_RP` in `engine.ts` |
 | Starter activities | `defaults.ts` |
 
 Run `npm test` after — the suite covers the scoring math, tier boundaries,
-demotion protection, shields, placements and the catch-up path.
+demotion protection, shields, placements, floor penalties and the catch-up path.

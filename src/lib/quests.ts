@@ -17,7 +17,9 @@ export const ALL_QUESTS_BONUS = 5;
 
 export function generateQuests(dateKey: string, activities: Activity[], par: number): Quest[] {
   const live = activities.filter((a) => !a.archived);
-  const builds = live.filter((a) => a.polarity === 'build');
+  // Keystones get their own prominent slot on the Today screen, so a quest
+  // telling you to do one would just be the same ask twice.
+  const builds = live.filter((a) => a.polarity === 'build' && !a.keystone);
   const burns = live.filter((a) => a.polarity === 'burn');
   if (builds.length === 0) return [];
 

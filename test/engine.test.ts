@@ -2,15 +2,22 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   addEntry,
+  bestLeverFor,
   catchUp,
   closeDay,
   entriesForDay,
   freshProfile,
   GHOST_CATCHUP_FLOOR,
+  GHOST_DAY_RP,
+  KEYSTONE_MISS_RP,
+  keystonesFor,
+  missedKeystones,
   PLACEMENT_DAYS,
   removeEntry,
   STREAK_DAMAGE_PER_MISS,
 } from '../src/lib/engine';
+import { generateQuests } from '../src/lib/quests';
+import { rawPointsFor } from '../src/lib/scoring';
 import { addDays, dayKeyFor, daysBetween, todayKey, weekStartKey } from '../src/lib/dates';
 import { freshState } from '../src/lib/defaults';
 import type { AppState, DayRecord } from '../src/lib/types';
@@ -129,7 +136,7 @@ test('closing a day over par gains RP and extends the streak', () => {
   let state = seedClosedDays(stateWithHistory(), 6, 40);
   const key = todayKey(state.settings.dayRolloverHour);
   state = addEntry(state, { activityId: 'gym', amount: 90, dateKey: key, source: 'tap' }).state;
-  state = addEntry(state, { activityId: 'assignment', amount: 60, dateKey: key, source: 'tap' }).state;
+  state = addEntry(state, { activityId: 'study', amount: 60, dateKey: key, source: 'tap' }).state;
 
   const before = state.profile.streak;
   const { record, profile } = closeDay(state, key);
@@ -172,7 +179,7 @@ test('a shield absorbs a loss on a day you showed up for', () => {
   state = { ...state, profile: { ...state.profile, shields: 2 } };
   // Enough to count as showing up (past 35% of par), nowhere near clearing it.
   state = addEntry(state, { activityId: 'gym', amount: 90, dateKey: key, source: 'tap' }).state;
-  state = addEntry(state, { activityId: 'assignment', amount: 30, dateKey: key, source: 'tap' }).state;
+  state = addEntry(state, { activityId: 'study', amount: 60, dateKey: key, source: 'tap' }).state;
 
   const { record, profile } = closeDay(state, key);
 
@@ -269,4 +276,82 @@ test('addDays rolls months and years correctly', () => {
 test('weeks start on Monday', () => {
   assert.equal(weekStartKey('2026-05-10'), '2026-05-04', 'a Sunday belongs to the week before');
   assert.equal(weekStartKey('2026-05-04'), '2026-05-04');
+});
+
+// ---- keystones: the daily floor --------------------------------------------
+
+test('the starter loadout ships exactly one keystone', () => {
+  const keystones = keystonesFor(freshState());
+  assert.equal(keystones.length, 1);
+  assert.equal(keystones[0].id, 'todo');
+  assert.equal(keystones[0].kind, 'check', 'the floor is a yes/no question, not a slider');
+});
+
+test('skipping a keystone costs RP even on a day that cleared par', () => {
+  let state = seedClosedDays(stateWithHistory(), 6, 30);
+  const key = todayKey(state.settings.dayRolloverHour);
+  // Plenty of points, but the thing that was actually due never got done.
+  state = addEntry(state, { activityId: 'gym', amount: 90, dateKey: key, source: 'tap' }).state;
+  state = addEntry(state, { activityId: 'study', amount: 90, dateKey: key, source: 'tap' }).state;
+
+  const { record } = closeDay(state, key);
+  const penalty = record.modifiers.find((m) => m.label.startsWith('Skipped:'));
+
+  assert.ok(penalty, 'a skipped keystone must show up as its own line');
+  assert.equal(penalty!.value, KEYSTONE_MISS_RP);
+  assert.equal(record.outcome, 'cleared', 'but the day still cleared par, and says so');
+});
+
+test('clearing the keystone removes the penalty entirely', () => {
+  let state = seedClosedDays(stateWithHistory(), 6, 30);
+  const key = todayKey(state.settings.dayRolloverHour);
+  state = addEntry(state, { activityId: 'gym', amount: 90, dateKey: key, source: 'tap' }).state;
+  state = addEntry(state, { activityId: 'todo', amount: 1, dateKey: key, source: 'tap' }).state;
+
+  const { record } = closeDay(state, key);
+  assert.equal(record.modifiers.filter((m) => m.label.startsWith('Skipped:')).length, 0);
+  assert.equal(missedKeystones(state, key).length, 0);
+});
+
+test('a day you never opened is not double-charged for the keystone', () => {
+  const state = {
+    ...seedClosedDays(stateWithHistory(), 6, 40),
+    settings: { ...stateWithHistory().settings, autoShield: false },
+  };
+  const { record } = closeDay(state, todayKey(state.settings.dayRolloverHour));
+
+  assert.equal(record.outcome, 'missed');
+  assert.equal(
+    record.modifiers.filter((m) => m.label.startsWith('Skipped:')).length,
+    0,
+    'the ghost-day penalty already covers not showing up',
+  );
+  assert.equal(record.rpDelta, GHOST_DAY_RP);
+});
+
+test('the keystone alone is worth most of a baseline day but not all of it', () => {
+  const state = freshState();
+  const keystone = keystonesFor(state)[0];
+  const worth = rawPointsFor(keystone, 1);
+  const par = state.settings.baselinePar;
+
+  assert.ok(worth / par > 0.5, 'doing the minimum should feel like real progress');
+  assert.ok(worth / par < 0.8, 'but it should never clear par on its own');
+});
+
+test('keystones are excluded from the daily quest draw', () => {
+  const state = freshState();
+  const quests = generateQuests('2026-07-01', state.activities, 45);
+  const keystoneIds = new Set(keystonesFor(state).map((a) => a.id));
+  assert.ok(
+    quests.every((q) => !q.activityId || !keystoneIds.has(q.activityId)),
+    'the floor has its own slot; a quest for it would be the same ask twice',
+  );
+});
+
+test('bestLeverFor does not suggest a check activity you already ticked', () => {
+  const state = freshState();
+  const suggestion = bestLeverFor(state.activities, 20, new Set(['todo']));
+  assert.ok(suggestion);
+  assert.ok(!suggestion!.includes('to-do list'), `still suggested the done thing: ${suggestion}`);
 });
